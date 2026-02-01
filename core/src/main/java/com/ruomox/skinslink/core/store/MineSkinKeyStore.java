@@ -88,6 +88,33 @@ public class MineSkinKeyStore {
     }
 
     /**
+     * 删除 Key (根据 RawKey 计算文件名并删除)
+     * @param rawKey 原始 Key (必须提供完整的 Key 才能计算出正确的文件名并删除，这本身也是一种安全确认)
+     */
+    public boolean delete(String rawKey) {
+        if (rawKey == null || rawKey.isBlank()) return false;
+
+        // 1. 反向计算文件名 (必须和 save 逻辑完全一致)
+        String filename = deriveFilename(rawKey);
+        Path file = storageDir.resolve(filename);
+
+        // 2. 删除文件
+        try {
+            boolean deleted = Files.deleteIfExists(file);
+            if (deleted) {
+                info(logger, "[KeyStore] Deleted key file: " + filename);
+                return true;
+            } else {
+                warn(logger, "[KeyStore] Try to delete key but file not found: " + filename);
+                return false;
+            }
+        } catch (IOException e) {
+            error(logger, "[KeyStore] Failed to delete file: " + filename, e);
+            return false;
+        }
+    }
+
+    /**
      * 读取所有 Key (解密)
      */
     public List<String> loadAll() {
@@ -104,6 +131,46 @@ public class MineSkinKeyStore {
             error(logger, "[KeyStore] Failed to list keys.", e);
             return Collections.emptyList();
         }
+    }
+
+    // 在 MineSkinKeyStore 类中添加/修改以下方法
+
+    /**
+     * [新方法] 仅列出打码后的 Key (用于 /slink list)
+     * 优势：只读文件名，不涉及 IO 读取和解密，速度极快且安全。
+     * 返回格式：msk_aaaa...
+     */
+    public List<String> listMaskedKeys() {
+        if (!Files.exists(storageDir)) return Collections.emptyList();
+
+        try (Stream<Path> stream = Files.list(storageDir)) {
+            return stream
+                    .filter(path -> path.toString().endsWith(".key"))
+                    .map(this::deriveMaskedFromFilename) // 只解析文件名
+                    .filter(Objects::nonNull)
+                    .sorted() // 简单的排序，方便查看
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            error(logger, "[KeyStore] Failed to list key files.", e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 从文件名解析展示字符串
+     * 文件名格式：wms7-hash.key
+     * 目标格式：msk_wms7... (让用户知道它是 msk_ 开头，且前缀是 wms7)
+     */
+    private String deriveMaskedFromFilename(Path path) {
+        String filename = path.getFileName().toString();
+        // 简单防御：确保文件名包含 "-"
+        int dashIndex = filename.indexOf('-');
+        if (dashIndex > 0) {
+            String prefix = filename.substring(0, dashIndex);
+            // 拼凑成用户习惯的 msk_前缀... 格式
+            return "msk_" + prefix + "...";
+        }
+        return "msk_????..."; // 异常文件名的兜底显示
     }
 
     // --- 内部逻辑 ---

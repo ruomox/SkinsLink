@@ -17,11 +17,6 @@ import static com.ruomox.skinslink.core.util.LogUtil.warn;
 
 /**
  * 配置读取工具
- * <p>
- * 特性：
- * 1. 支持标准 YAML 语法 (注释、列表、乱序)。
- * 2. 健壮的空值处理 (缺项自动使用默认值)。
- * 3. 同样支持 Platform 路径 -> 外部文件 -> 内部资源 的回退机制。
  */
 public final class ConfigUtil {
 
@@ -33,6 +28,7 @@ public final class ConfigUtil {
             boolean enableYggdrasil,
             boolean customApiAhead,
             boolean offlineMode,
+            String mineskinVisibility,
             List<String> customAPIs
     ) {
         public static final Config DEFAULT = new Config(
@@ -41,6 +37,7 @@ public final class ConfigUtil {
                 true,
                 false,
                 false,
+                "unlisted",
                 Collections.emptyList()
         );
     }
@@ -108,6 +105,9 @@ public final class ConfigUtil {
         boolean customApiAhead = getBoolean(data, "custom-api-ahead", false);
         boolean offlineMode = getBoolean(data, "offline-mode", false);
 
+        // 获取 mineskin-visibility
+        String mineskinVisibility = getString(data, "mineskin-visibility", "unlisted");
+
         // 解析列表 (支持 YAML list 格式)
         List<String> customAPIs = Collections.emptyList();
         Object apisObj = data.get("custom-apis");
@@ -119,7 +119,16 @@ public final class ConfigUtil {
                     .toList();
         }
 
-        return new Config(debugMode, enableGeyser, enableYggdrasil, customApiAhead, offlineMode, customAPIs);
+        // 构造函数参数增加 mineskinVisibility
+        return new Config(
+                debugMode,
+                enableGeyser,
+                enableYggdrasil,
+                customApiAhead,
+                offlineMode,
+                mineskinVisibility,
+                customAPIs
+        );
     }
 
     // --- 类型安全提取工具 ---
@@ -131,6 +140,15 @@ public final class ConfigUtil {
         }
         if (val instanceof String s) {
             return "true".equalsIgnoreCase(s) || "yes".equalsIgnoreCase(s) || "on".equalsIgnoreCase(s);
+        }
+        return def;
+    }
+
+    // String 类型安全提取
+    private static String getString(Map<String, Object> map, String key, String def) {
+        Object val = map.get(key);
+        if (val != null) {
+            return val.toString();
         }
         return def;
     }

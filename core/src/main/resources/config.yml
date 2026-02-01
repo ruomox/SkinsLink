@@ -5,3 +5,4 @@ custom-api-ahead: false
 custom-apis:
   - https://example.com/api/yggdrasil
 offline-mode: false
+mineskin-visibility: unlisted
