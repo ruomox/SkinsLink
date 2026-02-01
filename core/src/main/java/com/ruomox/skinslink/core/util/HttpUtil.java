@@ -26,11 +26,12 @@ public class HttpUtil {
     }
 
     private static final HttpClient CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(7))
+            .version(HttpClient.Version.HTTP_2)
+            .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
     private static Logger logger;
 
     public static void init(Logger logImpl) {
@@ -60,26 +61,23 @@ public class HttpUtil {
         return send(builder, HttpResponse.BodyHandlers.ofString());
     }
 
-    // --- 内部核心 ---
-
-    // 安全构建 Builder，捕获 URI 格式异常
-    private static HttpRequest.Builder safeBuilder(String url) {
+    // 公开 safeBuilder 供 MineSkinSigner 等高级模块自定义 Header 使用
+    public static HttpRequest.Builder safeBuilder(String url) {
         try {
             return HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(REQUEST_TIMEOUT)
-                    .header("User-Agent", HTTP_USER_AGENT);
+                    .header("User-Agent", HTTP_USER_AGENT)
+                    // 伪装成标准客户端，防止被防火墙判定为脚本
+                    .header("Accept", "application/json, */*");
         } catch (IllegalArgumentException e) {
             error(logger, "[Http] Bad URL format: " + url, e);
             return null;
         }
     }
 
-    private static <T> CompletableFuture<Result<T>> failedFuture(Throwable ex) {
-        return CompletableFuture.completedFuture(new Result<>(-1, null, ex));
-    }
-
-    private static <T> CompletableFuture<Result<T>> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<T> handler) {
+    // 暴露底层的 send 方法，供 Signer 等需要自定义 BodyHandler 的模块使用
+    public static <T> CompletableFuture<Result<T>> send(HttpRequest.Builder builder, HttpResponse.BodyHandler<T> handler) {
         HttpRequest request = builder.build();
         String url = request.uri().toString();
         long startNs = System.nanoTime();
@@ -92,6 +90,7 @@ public class HttpUtil {
                     long costMs = (System.nanoTime() - startNs) / 1_000_000;
                     T body = response.body();
 
+                    // debug 模式下打印响应体片段
                     debug(logger,
                             "[Http] <- " + code + " (" + costMs + "ms) " + url + snippet(body)
                     );
@@ -101,7 +100,13 @@ public class HttpUtil {
                 .handle((result, ex) -> {
                     if (ex != null) {
                         String msg = ex.getMessage();
-                        if (msg != null && msg.contains("timed out")) msg = "Timeout";
+                        // 优化报错信息可读性
+                        if (msg != null) {
+                            if (msg.contains("timed out")) msg = "Timeout";
+                            else if (msg.contains("Connection refused")) msg = "Connection Refused";
+                            else if (msg.contains("reset")) msg = "Connection Reset";
+                        }
+
                         error(logger, "[Http] Error (" + msg + "): " + url, ex);
                         return new Result<>(-1, null, ex);
                     }
@@ -109,10 +114,16 @@ public class HttpUtil {
                 });
     }
 
+    // --- 内部私有 ---
+
+    private static <T> CompletableFuture<Result<T>> failedFuture(Throwable ex) {
+        return CompletableFuture.completedFuture(new Result<>(-1, null, ex));
+    }
+
     private static String snippet(Object body) {
         try {
             if (body instanceof String s) {
-                return " body=" + s.substring(0, Math.min(100, s.length())) + "...";
+                return " body=" + s.substring(0, Math.min(150, s.length())).replace("\n", " ") + "...";
             }
         } catch (Exception ignored) { }
         return "";

@@ -1,27 +1,48 @@
 package com.ruomox.skinslink.core.util;
 
 import com.ruomox.skinslink.core.api.Logger;
-import static com.ruomox.skinslink.core.util.LogUtil.*;
+import org.yaml.snakeyaml.Yaml;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+import static com.ruomox.skinslink.core.util.LogUtil.error;
+import static com.ruomox.skinslink.core.util.LogUtil.info;
+import static com.ruomox.skinslink.core.util.LogUtil.warn;
 
 /**
  * 配置读取工具
- * 读取优先级：Platform指定路径 -> ./skinslink/config.yml -> 内置 resources/config.yml
+ * <p>
+ * 特性：
+ * 1. 支持标准 YAML 语法 (注释、列表、乱序)。
+ * 2. 健壮的空值处理 (缺项自动使用默认值)。
+ * 3. 同样支持 Platform 路径 -> 外部文件 -> 内部资源 的回退机制。
  */
 public final class ConfigUtil {
 
     private ConfigUtil() {}
 
-    public record Config(boolean debugMode) {
-        public static final Config DEFAULT = new Config(false);
+    public record Config(
+            boolean debugMode,
+            boolean enableGeyser,
+            boolean enableYggdrasil,
+            boolean customApiAhead,
+            boolean offlineMode,
+            List<String> customAPIs
+    ) {
+        public static final Config DEFAULT = new Config(
+                false,
+                true,
+                true,
+                false,
+                false,
+                Collections.emptyList()
+        );
     }
 
     public static Config load(Logger logger, Path overridePath) {
@@ -32,7 +53,6 @@ public final class ConfigUtil {
         }
 
         // 2. 优先级二：运行目录下的默认文件 (./skinslink/config.yml)
-        // 这是为了兼容那些不通过 Platform 传参，直接解压运行的情况
         Path defaultExternal = Path.of("skinslink", "config.yml");
         if (Files.isRegularFile(defaultExternal)) {
             info(logger, "[Config] Loading from external path: " + defaultExternal.toAbsolutePath());
@@ -44,14 +64,17 @@ public final class ConfigUtil {
         return parseResource(logger, "/config.yml");
     }
 
-    // ---------------- private helpers ----------------
+    // ---------------- 核心解析逻辑 ----------------
 
     private static Config parseFile(Logger logger, Path path) {
-        try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-            return parseReader(reader);
+        try (InputStream in = Files.newInputStream(path)) {
+            return parseStream(in);
         } catch (IOException e) {
-            error(logger, "[Config] Failed to read " + path + ", falling back to defaults.", e);
+            error(logger, "[Config] Failed to read file: " + path + ", falling back to defaults.", e);
             return parseResource(logger, "/config.yml");
+        } catch (Exception e) {
+            error(logger, "[Config] YAML syntax error in " + path + ", falling back to defaults.", e);
+            return Config.DEFAULT;
         }
     }
 
@@ -61,41 +84,54 @@ public final class ConfigUtil {
                 warn(logger, "[Config] Embedded resource '" + resourcePath + "' not found! Using hardcoded defaults.");
                 return Config.DEFAULT;
             }
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-                return parseReader(reader);
-            }
-        } catch (IOException e) {
+            return parseStream(in);
+        } catch (Exception e) {
             error(logger, "[Config] Failed to read embedded resource.", e);
             return Config.DEFAULT;
         }
     }
 
-    private static Config parseReader(BufferedReader reader) throws IOException {
-        boolean debugMode = false;
-        String line;
-        while ((line = reader.readLine()) != null) {
-            line = stripComments(line).trim();
-            if (line.isEmpty()) continue;
+    @SuppressWarnings("unchecked")
+    private static Config parseStream(InputStream inputStream) {
+        // SnakeYAML 核心调用
+        Yaml yaml = new Yaml();
+        Map<String, Object> data = yaml.load(inputStream);
 
-            int colon = line.indexOf(':');
-            if (colon < 0) continue;
-
-            String key = line.substring(0, colon).trim().toLowerCase(Locale.ROOT);
-            String value = line.substring(colon + 1).trim();
-
-            if ("debug-mode".equals(key)) {
-                debugMode = parseBool(value);
-            }
+        if (data == null) {
+            return Config.DEFAULT;
         }
-        return new Config(debugMode);
+
+        // 安全获取值的辅助逻辑 (Map Get with Default)
+        boolean debugMode = getBoolean(data, "debug-mode", false);
+        boolean enableGeyser = getBoolean(data, "enable-geyser", true);
+        boolean enableYggdrasil = getBoolean(data, "enable-yggdrasil", true);
+        boolean customApiAhead = getBoolean(data, "custom-api-ahead", false);
+        boolean offlineMode = getBoolean(data, "offline-mode", false);
+
+        // 解析列表 (支持 YAML list 格式)
+        List<String> customAPIs = Collections.emptyList();
+        Object apisObj = data.get("custom-apis");
+        if (apisObj instanceof List<?>) {
+            // 过滤掉非 String 的杂质
+            customAPIs = ((List<?>) apisObj).stream()
+                    .map(Object::toString)
+                    .filter(s -> !s.isBlank())
+                    .toList();
+        }
+
+        return new Config(debugMode, enableGeyser, enableYggdrasil, customApiAhead, offlineMode, customAPIs);
     }
 
-    private static String stripComments(String line) {
-        int idx = line.indexOf('#');
-        return idx >= 0 ? line.substring(0, idx) : line;
-    }
+    // --- 类型安全提取工具 ---
 
-    private static boolean parseBool(String value) {
-        return "true".equalsIgnoreCase(value) || "yes".equalsIgnoreCase(value) || "on".equalsIgnoreCase(value);
+    private static boolean getBoolean(Map<String, Object> map, String key, boolean def) {
+        Object val = map.get(key);
+        if (val instanceof Boolean b) {
+            return b;
+        }
+        if (val instanceof String s) {
+            return "true".equalsIgnoreCase(s) || "yes".equalsIgnoreCase(s) || "on".equalsIgnoreCase(s);
+        }
+        return def;
     }
 }

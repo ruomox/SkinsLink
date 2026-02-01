@@ -106,7 +106,7 @@ public class SkinCodec {
         }
     }
 
-    private static SkinResult decodeInnerData(String rawValue, String validSignature) {
+    public static SkinResult decodeInnerData(String rawValue, String validSignature) {
         try {
             // Base64 解码 value
             byte[] decodedBytes = Base64.getDecoder().decode(rawValue);
