@@ -2,11 +2,10 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
-!**/src/test/**/build/
 .kotlin
 *.md
 !README.md
-test
+**/src/test/
 
 ### IntelliJ IDEA ###
 .idea
@@ -15,7 +14,6 @@ test
 *.ipr
 out/
 !**/src/main/**/out/
-!**/src/test/**/out/
 
 ### Eclipse ###
 .apt_generated
@@ -27,7 +25,6 @@ out/
 .sts4-cache
 bin/
 !**/src/main/**/bin/
-!**/src/test/**/bin/
 
 ### NetBeans ###
 /nbproject/private/
