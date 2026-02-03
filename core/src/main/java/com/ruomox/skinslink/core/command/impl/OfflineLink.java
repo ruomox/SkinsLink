@@ -38,25 +38,32 @@ public class OfflineLink {
         fetcher.fetch(sourceUUID)
                 .thenCompose(rawResponse -> {
 
+                    // 1. 解析原始数据
                     SkinResult result = SkinCodec.parseAPIData(rawResponse.rawBody());
 
                     if (result == null) {
-                        // 解析失败 (包含了 404 导致 Body 为空、或者 JSON 格式不对的情况)
                         throw new RuntimeException(I18nUtil.get("error_parse_failed"));
                     }
 
+                    // 2. [关键优化] 立即计算 URL Hash (Fetch到的源数据指纹)
+                    // 这里的 Hash 代表了"这个皮肤长什么样"，用于后续比对更新
+                    String targetUrlHash = (result.skinURL() != null) ? HashUtil.hashUrl(result.skinURL()) : null;
+
+                    // 3. 签名决策与数据流转
                     if (result.skinKey() != null) {
+                        // 自带签名 (Authed)，直接透传 Hash
                         return CompletableFuture.completedFuture(
-                                buildRecord(targetUUID, result, result.skinValue(), result.skinKey(), "Authed")
+                                buildRecord(targetUUID, result, result.skinValue(), result.skinKey(), "Authed", targetUrlHash)
                         );
                     } else {
+                        // 无签名 (Mineskin)，去签名，并透传之前算好的 Hash
                         return signer.uploadAndSign(result.skinURL(), "unknown", sourceUUID.toString())
                                 .thenApply(optSigned -> {
                                     if (optSigned.isEmpty()) {
                                         throw new RuntimeException(I18nUtil.get("error_signature_failed"));
                                     }
                                     SignedProperty signed = optSigned.get();
-                                    return buildRecord(targetUUID, result, signed.value(), signed.signature(), "Mineskin");
+                                    return buildRecord(targetUUID, result, signed.value(), signed.signature(), "Mineskin", targetUrlHash);
                                 });
                     }
                 })
@@ -67,8 +74,6 @@ public class OfflineLink {
                 .exceptionally(ex -> {
                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                     error(null, "Link logic failed for " + targetUUID, cause);
-
-                    // 直接发送异常信息 (已经是翻译过的了)
                     sender.sendMessage(I18nUtil.get("prefix") + cause.getMessage());
                     return null;
                 });
@@ -95,9 +100,9 @@ public class OfflineLink {
         });
     }
 
-    private SkinRecord buildRecord(UUID targetUUID, SkinResult result, String finalValue, String finalKey, String authType) {
+    // [修改] 增加 targetUrlHash 参数，不再内部计算
+    private SkinRecord buildRecord(UUID targetUUID, SkinResult result, String finalValue, String finalKey, String authType, String targetUrlHash) {
         String now = LocalDateTime.now().format(TIME_FMT);
-        String urlHash = (result.skinURL() != null) ? HashUtil.hashUrl(result.skinURL()) : null;
 
         return new SkinRecord(
                 targetUUID,
@@ -106,7 +111,7 @@ public class OfflineLink {
                 finalValue,
                 finalKey,
                 authType,
-                urlHash,
+                targetUrlHash, // 直接使用传入的 Fetcher 源数据 Hash
                 null,
                 now
         );

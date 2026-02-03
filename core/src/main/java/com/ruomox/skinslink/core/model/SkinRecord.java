@@ -16,7 +16,7 @@ public record SkinRecord(
         @Nullable String skinValue,      // Base64 value（可为 null）
         @Nullable String skinKey,        // signature（可为 null）
         @NotNull String skinAuth,        // Mojang/LittleSkin/Geyser/None（无皮肤也要记录来源= None）
-        @Nullable String urlHash,        // URL hash（skinURL 为 null 时必为 null）
+        @Nullable String urlHash,        // URL hash（signer 前的 skinURL 为 null 时必为 null）
         @Nullable String skinHash,       // PNG hash（可为 null）
         @NotNull String skinTime         // 最近一次确认时间（无皮肤也会更新）
 ) {}
