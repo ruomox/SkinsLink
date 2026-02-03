@@ -2,6 +2,7 @@ package com.ruomox.skinslink.core.command.impl;
 
 import com.ruomox.skinslink.core.api.CommandBridge.CommandSender;
 import com.ruomox.skinslink.core.store.MineSkinKeyStore;
+import com.ruomox.skinslink.core.util.I18nUtil;
 
 import java.util.List;
 
@@ -11,7 +12,7 @@ import java.util.List;
  * 职责：
  * 1. 处理 /slink mineskin-api [add/remove/list]
  * 2. 负责权限校验 (Admin only)
- * 3. 负责参数校验与反馈
+ * 3. 负责参数校验与反馈 (使用 I18n)
  */
 public class MineskinAPI {
 
@@ -31,7 +32,8 @@ public class MineskinAPI {
 
         // 简单的长度校验
         if (apiKey == null || apiKey.length() < 10) {
-            sender.sendMessage("§c[Error] API Key 格式看似不正确 (长度过短)。");
+            // error_key_short
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("error_key_short"));
             return;
         }
 
@@ -41,10 +43,14 @@ public class MineskinAPI {
             String prefix = apiKey.startsWith("msk_") ? apiKey.substring(4) : apiKey;
             if (prefix.length() > 4) prefix = prefix.substring(0, 4);
 
-            sender.sendMessage("§a[SkinsLink] 成功添加 API Key！");
-            sender.sendMessage("§7文件ID: §e" + prefix + " §7(对应文件名 " + prefix + "-xxxx.key)");
+            // cmd_api_added
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("cmd_api_added"));
+
+            // cmd_api_file_id (带参数: {0}=ID, {1}=完整文件名)
+            sender.sendMessage(I18nUtil.get("cmd_api_file_id", prefix, prefix + "-xxxx.key"));
         } else {
-            sender.sendMessage("§c[Error] 添加失败，请检查控制台日志。");
+            // error_add_failed
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("error_add_failed"));
         }
     }
 
@@ -53,26 +59,30 @@ public class MineskinAPI {
 
         boolean success = keyStore.delete(apiKey);
         if (success) {
-            sender.sendMessage("§a[SkinsLink] 成功删除指定的 API Key。");
+            // cmd_key_deleted
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("cmd_key_deleted"));
         } else {
-            sender.sendMessage("§c[Error] 删除失败。找不到该 Key 对应的文件，或完整 Key 输入错误。");
+            // cmd_key_not_found
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("cmd_key_not_found"));
         }
     }
 
     public void handleList(CommandSender sender) {
         if (!checkPermission(sender)) return;
 
-        // [修改点] 改用 listMaskedKeys，只读文件名
+        // 改用 listMaskedKeys，只读文件名
         List<String> maskedKeys = keyStore.listMaskedKeys();
 
         if (maskedKeys.isEmpty()) {
-            sender.sendMessage("§e[SkinsLink] 当前未加载任何 MineSkin API Key。");
-            sender.sendMessage("§7请使用 /slink mineskin-api add <Key> 添加。");
+            // cmd_no_keys & cmd_no_keys_hint
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("cmd_no_keys"));
+            sender.sendMessage(I18nUtil.get("cmd_no_keys_hint"));
         } else {
-            sender.sendMessage("§a=== MineSkin API Keys (Stored: " + maskedKeys.size() + ") ===");
+            // cmd_key_list_header (带参数: {0}=数量)
+            sender.sendMessage(I18nUtil.get("cmd_key_list_header", maskedKeys.size()));
             for (String masked : maskedKeys) {
-                // 这里 masked 已经是 "msk_wms7..." 这种格式了
-                sender.sendMessage("§7- " + masked);
+                // cmd_key_item (带参数: {0}=Key内容)
+                sender.sendMessage(I18nUtil.get("cmd_key_item", masked));
             }
         }
     }
@@ -83,18 +93,19 @@ public class MineskinAPI {
 
     private boolean checkPermission(CommandSender sender) {
         if (!sender.hasPermission(PERM_ADMIN)) {
-            sender.sendMessage("§c[SkinsLink] 你没有权限执行此操作 (需要: " + PERM_ADMIN + ")。");
+            // error_no_permission
+            sender.sendMessage(I18nUtil.get("prefix") + I18nUtil.get("error_no_permission"));
             return false;
         }
         return true;
     }
 
     /**
-     * 简单的打码处理: 前4位 + **** + 后4位
+     * 简单的打码处理 (遗留方法，目前主要用 listMaskedKeys)
      */
     private String maskKey(String key) {
         if (key == null) return "null";
-        if (key.length() <= 8) return key; // 长度不够就不码了
+        if (key.length() <= 8) return key;
         return key.substring(0, 4) + "****" + key.substring(key.length() - 4);
     }
 }

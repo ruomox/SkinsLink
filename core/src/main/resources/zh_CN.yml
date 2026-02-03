@@ -1,0 +1,57 @@
+# ==========================================
+# SkinsLink 简体中文语言文件 (zh_CN)
+# ==========================================
+
+prefix: "&a[SkinsLink] "
+
+# --- 通用错误信息 ---
+error_no_permission: "&c你没有权限执行此操作。"
+error_generic: "&c发生未知错误。"
+error_player_only: "&c该命令仅限玩家执行。"
+error_format: "&c命令格式错误。"
+error_unknown_cmd: "&c未知命令: {0}"
+
+# --- UUID 与参数校验 ---
+error_invalid_uuid: "&cUUID 格式错误: {0}"
+error_uuid_params: "&c参数中包含无效的 UUID 格式。"
+
+# --- 绑定与解绑 (Link/Unlink) ---
+msg_processing: "&e正在处理皮肤请求，请稍候..."
+msg_link_success: "&a皮肤绑定成功！&7(若未变化请尝试切换维度或重连)"
+msg_unlink_success: "&a皮肤已重置 (解绑成功)。"
+
+# --- 皮肤获取与签名错误 ---
+error_fetch_failed: "&c无法获取皮肤数据 (网络错误或目标不存在)。"
+error_parse_failed: "&c无法解析皮肤数据 (目标 UUID 无效或没有皮肤)。"
+error_signature_failed: "&c皮肤签名失败 (签名服务超时或拒绝)。"
+
+# --- MineSkin API 管理 ---
+# {0} = 前缀ID (例如 wms7), {1} = 完整文件名
+cmd_api_added: "&a成功添加 API Key！"
+cmd_api_file_id: "&7文件ID: &e{0} &7(对应文件名 {1})"
+
+cmd_key_deleted: "&a成功删除指定的 API Key。"
+cmd_key_not_found: "&c删除失败。找不到该 Key 对应的文件，或完整 Key 输入错误。"
+
+cmd_no_keys: "&e当前未加载任何 MineSkin API Key。"
+cmd_no_keys_hint: "&7请使用 /slink mineskin-api add <Key> 添加。"
+
+# {0} = Key 的数量
+cmd_key_list_header: "&a=== MineSkin API Keys (已存储: {0}) ==="
+# {0} = Key 的显示文本 (如 msk_xxxx...)
+cmd_key_item: "&7- {0}"
+
+error_key_short: "&c[Error] API Key 格式看似不正确 (长度过短)。"
+error_add_failed: "&c[Error] 添加失败，请检查控制台日志。"
+
+# --- 帮助菜单 ---
+help_header: "&e=== SkinsLink 帮助菜单 ==="
+help_link: "&b/slink link <SourceUUID> &7- 绑定皮肤"
+help_unlink: "&b/slink unlink &7- 重置(解绑)自己的皮肤"
+help_link_other: "&b/slink link <PlayerUUID> <SourceUUID> &7- 为玩家绑定"
+help_unlink_other: "&b/slink unlink <PlayerUUID> &7- 解绑玩家皮肤"
+help_mineskin_list: "&b/slink mineskin-api list &7- 查看 API Key 列表"
+help_mineskin_add: "&b/slink mineskin-api add <Key> &7- 添加 API Key"
+help_mineskin_remove: "&b/slink mineskin-api remove <Key> &7- 删除 API Key"
+help_reload: "&b/slink reload &7- 重载配置与语言文件"
+cmd_reload: "&a配置与语言文件已重载。"

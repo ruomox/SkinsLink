@@ -2,8 +2,8 @@ package com.ruomox.skinslink.core.store.sql;
 
 import com.ruomox.skinslink.core.api.Logger;
 import com.ruomox.skinslink.core.model.SkinRecord;
+import com.ruomox.skinslink.core.util.ConfigUtil;
 
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -13,7 +13,7 @@ public class SQLiteStorage extends AbstractSqlStorage {
 
     private final String jdbcUrl;
 
-    public SQLiteStorage(Logger logger, Path dataFolder) {
+    public SQLiteStorage(Logger logger) {
         super(logger);
         try {
             Class.forName("org.sqlite.JDBC");
@@ -21,7 +21,7 @@ public class SQLiteStorage extends AbstractSqlStorage {
             throw new RuntimeException("SQLite JDBC driver not found!", e);
         }
         // 使用 resolve 组合路径，更安全
-        this.jdbcUrl = "jdbc:sqlite:" + dataFolder.resolve("database.db").toAbsolutePath();
+        this.jdbcUrl = "jdbc:sqlite:" + ConfigUtil.dataDirectory.resolve("database.db").toAbsolutePath();
     }
 
     @Override

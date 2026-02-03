@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,8 @@ public final class ConfigUtil {
 
     private ConfigUtil() {}
 
+    public static Path dataDirectory = Path.of("skinslink");
+
     public record Config(
             boolean debugMode,
             boolean enableGeyser,
@@ -29,6 +32,7 @@ public final class ConfigUtil {
             boolean customApiAhead,
             boolean offlineMode,
             String mineskinVisibility,
+            String language,
             List<String> customAPIs
     ) {
         public static final Config DEFAULT = new Config(
@@ -38,30 +42,67 @@ public final class ConfigUtil {
                 false,
                 false,
                 "unlisted",
+                "en_US",
                 Collections.emptyList()
         );
     }
 
     public static Config load(Logger logger, Path overridePath) {
-        // 1. 优先级一：Platform 明确传入的路径
-        if (overridePath != null && Files.isRegularFile(overridePath)) {
-            info(logger, "[Config] Loading from platform path: " + overridePath);
-            return parseFile(logger, overridePath);
+        Path targetPath;
+
+        // 1. 确定目标路径与工作目录 (修复：不再依赖文件是否存在来判断路径)
+        if (overridePath != null) {
+            targetPath = overridePath;
+            Path parent = overridePath.getParent();
+            dataDirectory = (parent != null) ? parent : Path.of(".");
+        } else {
+            dataDirectory = Path.of("skinslink");
+            targetPath = dataDirectory.resolve("config.yml");
         }
 
-        // 2. 优先级二：运行目录下的默认文件 (./skinslink/config.yml)
-        Path defaultExternal = Path.of("skinslink", "config.yml");
-        if (Files.isRegularFile(defaultExternal)) {
-            info(logger, "[Config] Loading from external path: " + defaultExternal.toAbsolutePath());
-            return parseFile(logger, defaultExternal);
+        // 2. 检查并创建文件 (修复：缺少“保存默认配置”的逻辑)
+        if (!Files.exists(targetPath)) {
+            info(logger, "[Config] File not found at " + targetPath + ", creating default...");
+            saveDefaultConfig(logger, targetPath);
         }
 
-        // 3. 优先级三：内置资源 (兜底)
-        info(logger, "[Config] Config not found, using embedded defaults.");
+        // 3. 读取文件 (此时文件应该已经存在了)
+        if (Files.isRegularFile(targetPath)) {
+            info(logger, "[Config] Loading from: " + targetPath.toAbsolutePath());
+            return parseFile(logger, targetPath);
+        }
+
+        // 4. 兜底
+        warn(logger, "[Config] Failed to load/create config file. Using memory-only defaults.");
         return parseResource(logger, "/config.yml");
     }
 
     // ---------------- 核心解析逻辑 ----------------
+
+    /**
+     * 将 Jar 包内的 config.yml 释放到指定路径
+     */
+    private static void saveDefaultConfig(Logger logger, Path target) {
+        try {
+            // 确保父目录存在
+            Path parent = target.getParent();
+            if (parent != null && !Files.exists(parent)) {
+                Files.createDirectories(parent);
+            }
+
+            try (InputStream in = ConfigUtil.class.getResourceAsStream("/config.yml")) {
+                if (in == null) {
+                    warn(logger, "[Config] Embedded resource '/config.yml' not found! Cannot create default file.");
+                    return;
+                }
+                // 复制文件 (如果存在则替换，防止写入部分数据)
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                info(logger, "[Config] Default config created successfully.");
+            }
+        } catch (IOException e) {
+            error(logger, "[Config] Failed to save default config to " + target, e);
+        }
+    }
 
     private static Config parseFile(Logger logger, Path path) {
         try (InputStream in = Files.newInputStream(path)) {
@@ -108,6 +149,9 @@ public final class ConfigUtil {
         // 获取 mineskin-visibility
         String mineskinVisibility = getString(data, "mineskin-visibility", "unlisted");
 
+        // 读取 language，默认为 en
+        String language = getString(data, "language", "en_US");
+
         // 解析列表 (支持 YAML list 格式)
         List<String> customAPIs = Collections.emptyList();
         Object apisObj = data.get("custom-apis");
@@ -127,6 +171,7 @@ public final class ConfigUtil {
                 customApiAhead,
                 offlineMode,
                 mineskinVisibility,
+                language,
                 customAPIs
         );
     }

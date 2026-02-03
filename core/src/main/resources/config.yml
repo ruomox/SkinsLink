@@ -1,8 +1,9 @@
+language: en_US
 debug-mode: false
 enable-geyser: true
 enable-yggdrasil: true
 custom-api-ahead: false
 custom-apis:
-  - https://example.com/api/yggdrasil
+#  - https://example.com/api/yggdrasil
 offline-mode: false
 mineskin-visibility: unlisted

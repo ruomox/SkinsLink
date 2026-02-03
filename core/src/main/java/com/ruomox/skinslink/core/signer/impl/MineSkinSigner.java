@@ -9,6 +9,7 @@ import com.ruomox.skinslink.core.signer.SkinSigner;
 import com.ruomox.skinslink.core.store.MineSkinKeyStore;
 import com.ruomox.skinslink.core.util.HttpUtil;
 import com.ruomox.skinslink.core.util.HttpUtil.Result;
+import com.ruomox.skinslink.core.util.ConfigUtil.Config;
 
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -25,13 +26,14 @@ import static com.ruomox.skinslink.core.util.LogUtil.warn;
 import static com.ruomox.skinslink.core.util.LogUtil.debug;
 
 /**
- * 健壮的 MineSkin 签名器实现 (适配 API V2)
+ * MineSkin 签名器实现 (适配 API V2)
  * 基于 HttpUtil，使用 JsonObject 直接解析
  */
 public class MineSkinSigner implements SkinSigner {
 
     private final Logger logger;
     private final MineSkinKeyStore keyStore;
+    private final Config config;
 
     // 并发控制 (Max 5)
     private final Semaphore semaphore = new Semaphore(5);
@@ -43,9 +45,10 @@ public class MineSkinSigner implements SkinSigner {
     private static final int MAX_RETRIES = 4;
     private static final String API_URL = "https://api.mineskin.org/v2/generate";
 
-    public MineSkinSigner(Logger logger, MineSkinKeyStore keyStore) {
+    public MineSkinSigner(Logger logger, MineSkinKeyStore keyStore, Config config) {
         this.logger = logger;
         this.keyStore = keyStore;
+        this.config = config;
     }
 
     @Override
@@ -211,7 +214,7 @@ public class MineSkinSigner implements SkinSigner {
         JsonObject req = new JsonObject();
         req.addProperty("variant", "unknown");
         req.addProperty("name", uuid);
-        req.addProperty("visibility", "unlisted");
+        req.addProperty("visibility", config.mineskinVisibility());
         req.addProperty("url", url);
 
         HttpRequest.Builder builder = HttpUtil.safeBuilder(API_URL);

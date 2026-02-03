@@ -1,0 +1,57 @@
+# ==========================================
+# SkinsLink English Language File (en_US)
+# ==========================================
+
+prefix: "&a[SkinsLink] "
+
+# --- General Errors ---
+error_no_permission: "&cYou do not have permission to perform this command."
+error_generic: "&cAn unknown error occurred."
+error_player_only: "&cThis command is for players only."
+error_format: "&cInvalid command format."
+error_unknown_cmd: "&cUnknown command: {0}"
+
+# --- UUID & Validation ---
+error_invalid_uuid: "&cInvalid UUID format: {0}"
+error_uuid_params: "&cInvalid UUID format in parameters."
+
+# --- Link/Unlink ---
+msg_processing: "&eProcessing skin request, please wait..."
+msg_link_success: "&aSkin linked successfully! &7(Rejoin or switch worlds to refresh)"
+msg_unlink_success: "&aSkin unlinked (reset) successfully."
+
+# --- Fetch & Sign Errors ---
+error_fetch_failed: "&cFailed to fetch skin data (Network error or target not found)."
+error_parse_failed: "&cFailed to parse skin data (Target UUID invalid or has no skin)."
+error_signature_failed: "&cSkin signature failed (Service timeout or denied)."
+
+# --- MineSkin API Management ---
+# {0} = Prefix ID (e.g. wms7), {1} = Full Filename
+cmd_api_added: "&aAPI Key added successfully!"
+cmd_api_file_id: "&7File ID: &e{0} &7(Filename: {1})"
+
+cmd_key_deleted: "&aThe specified API Key was deleted successfully."
+cmd_key_not_found: "&cFailed to delete. Key file not found or input was incorrect."
+
+cmd_no_keys: "&eNo MineSkin API Keys are currently loaded."
+cmd_no_keys_hint: "&7Use /slink mineskin-api add <Key> to add one."
+
+# {0} = Count of keys
+cmd_key_list_header: "&a=== MineSkin API Keys (Stored: {0}) ==="
+# {0} = Key display text (e.g. msk_xxxx...)
+cmd_key_item: "&7- {0}"
+
+error_key_short: "&c[Error] The API Key appears invalid (too short)."
+error_add_failed: "&c[Error] Failed to add key. Please check the console logs."
+
+# --- Help Menu ---
+help_header: "&e=== SkinsLink Help ==="
+help_link: "&b/slink link <SourceUUID> &7- Link a skin"
+help_unlink: "&b/slink unlink &7- Unlink (reset) your skin"
+help_link_other: "&b/slink link <PlayerUUID> <SourceUUID> &7- Link skin for player"
+help_unlink_other: "&b/slink unlink <PlayerUUID> &7- Unlink player skin"
+help_mineskin_list: "&b/slink mineskin-api list &7- List API Keys"
+help_mineskin_add: "&b/slink mineskin-api add <Key> &7- Add API Key"
+help_mineskin_remove: "&b/slink mineskin-api remove <Key> &7- Remove API Key"
+help_reload: "&b/slink reload &7- Reload configuration and messages"
+cmd_reload: "&aConfiguration and messages reloaded."

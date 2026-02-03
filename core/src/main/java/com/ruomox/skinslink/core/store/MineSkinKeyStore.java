@@ -1,6 +1,7 @@
 package com.ruomox.skinslink.core.store;
 
 import com.ruomox.skinslink.core.api.Logger;
+import com.ruomox.skinslink.core.util.ConfigUtil;
 import com.ruomox.skinslink.core.util.SecurityUtil;
 
 import java.io.IOException;
@@ -32,18 +33,16 @@ public class MineSkinKeyStore {
 
     /**
      * @param logger     日志接口
-     * @param dataFolder 插件主数据目录 (例如 plugins/SkinsLink)
      */
-    public MineSkinKeyStore(Logger logger, Path dataFolder) {
+    public MineSkinKeyStore(Logger logger) {
         this.logger = logger;
         // 直接挂载到主目录下
-        this.storageDir = dataFolder.resolve("mineskin");
+        this.storageDir = ConfigUtil.dataDirectory.resolve("mineskin");
         initDirectory();
     }
 
     private void initDirectory() {
         try {
-            // 只要父目录有权限，这里就能创建成功；如果没有权限，抛出异常也是合理的
             if (!Files.exists(storageDir)) {
                 Files.createDirectories(storageDir);
             }
