@@ -1,0 +1,1 @@
+// Uses root Gradle configuration
