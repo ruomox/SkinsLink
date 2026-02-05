@@ -6,6 +6,7 @@ import com.ruomox.skinslink.core.fetcher.UniversalSkinFetcher;
 import com.ruomox.skinslink.core.signer.SkinSigner;
 import com.ruomox.skinslink.core.signer.impl.MineSkinSigner;
 import com.ruomox.skinslink.core.store.MineSkinKeyStore;
+import com.ruomox.skinslink.core.store.sql.SQLiteStorage; // 引入 SQLite 实现
 import com.ruomox.skinslink.core.store.SkinStorage;
 import com.ruomox.skinslink.core.util.ConfigUtil;
 import com.ruomox.skinslink.core.util.HttpUtil;
@@ -48,6 +49,10 @@ public class SkinPipeline implements CoreAPI {
 
         info(logger, "[Pipeline] Initializing Core Components...");
 
+        // 实例化 SQLiteStorage 并赋值给 storage 字段，防止 SignedPath 空指针
+        this.storage = new SQLiteStorage(logger);
+        this.storage.init();
+
         // 3. 实例化获取器 (Fetcher)
         FetcherBuilder builder = new FetcherBuilder(config);
         this.universalFetcher = new UniversalSkinFetcher(logger, builder);
@@ -66,6 +71,9 @@ public class SkinPipeline implements CoreAPI {
             // 实例化在线业务管道
             this.activePipeline = new OnlinePipeline(config, universalFetcher::fetch, skinSigner);
         }
+
+        // 将 storage 注入给下级 pipeline
+        setStorage(this.storage);
 
         // 6. 激活选定的管道
         this.activePipeline.init(platformLogger);
