@@ -9,7 +9,6 @@ import com.ruomox.skinslink.core.signer.SkinSigner;
 import com.ruomox.skinslink.core.store.SkinStorage;
 import com.ruomox.skinslink.core.util.ConfigUtil;
 import com.ruomox.skinslink.core.util.HttpUtil;
-import com.ruomox.skinslink.core.util.LogUtil;
 import com.ruomox.skinslink.core.util.SkinCodec;
 
 import java.util.concurrent.CompletableFuture;
@@ -57,8 +56,6 @@ public class OnlinePipeline implements CoreAPI {
         this.fetchPath = new FetchPath(logger, config, fetcher, signer);
 
         // --- 核心修改：补传逻辑 ---
-        // 如果在 init 之前，外部就已经通过 setStorage 传进来了 storage 引用，
-        // 那么在 path 们刚创建完的这一刻，必须立刻同步给它们。
         if (this.storage != null) {
             setStorage(this.storage);
         }
@@ -70,10 +67,7 @@ public class OnlinePipeline implements CoreAPI {
      * 存储层注入：确保所有分支都能访问数据库进行 urlHash 校验
      */
     public void setStorage(SkinStorage storage) {
-        // 1. 先保存引用到当前对象，供 init 之后补传
         this.storage = storage;
-
-        // 2. 只有当 path 们不为空（已经 init 过了）时才向下传递
         if (signedPath != null) signedPath.setStorage(storage);
         if (unsignedPath != null) unsignedPath.setStorage(storage);
         if (fetchPath != null) fetchPath.setStorage(storage);
@@ -83,25 +77,36 @@ public class OnlinePipeline implements CoreAPI {
     public CompletableFuture<SkinProfile> handleJoin(PlatformRequest request) {
         SkinProfile original = request.originalSkin();
 
-        // 1. 判断是否有数据 (Value)
-        boolean hasValue = original != null && isValidBase64(original.value());
+        // 1. 基础提取与格式校验
+        String value = (original != null) ? original.value() : null;
+        String signature = (original != null) ? original.signature() : null;
 
-        // 2. 判断是否有签名 (Signature)
-        boolean hasSignature = hasValue && isValidBase64(original.signature());
+        boolean validValue = isValidBase64(value);
+        boolean validSignature = validValue && isValidBase64(signature);
 
-        // --- 路由分发逻辑 ---
-
-        // Pipeline ①: 游戏有完整正版数据 -> 直通/缓存验证
-        if (hasSignature) {
-            return signedPath.process(request);
+        // 2. 语义分析：尝试解码以获取 URL
+        SkinCodec.SkinResult decoded = null;
+        if (validValue) {
+            // 利用 SkinCodec 提取内部信息，signature 仅在格式合法时传入
+            decoded = SkinCodec.decodeInnerData(value, validSignature ? signature : null);
         }
 
-        // Pipeline ②: 游戏内没签名但有数据 -> 计算Hash/拦截/洗白
-        if (hasValue) {
-            return unsignedPath.process(request);
+        // 3. 核心路由分发逻辑
+        if (decoded != null && decoded.skinURL() != null) {
+            // 情况 A: 成功解析出皮肤 URL
+            boolean isMojang = decoded.skinURL().contains("textures.minecraft.net");
+
+            if (isMojang && validSignature) {
+                // 路由 ①: Mojang 官方域名 + 有效签名 -> 信任直通 (SignedPath)
+                return signedPath.process(request);
+            } else {
+                // 路由 ②: 第三方域名 (LittleSkin等) 或 Mojang 域名但无签名 -> 强制洗白 (UnsignedPath)
+                // 这一步解决了 "有 Key 但不显示" 的问题，强制去 MineSkin 换一个真签名
+                return unsignedPath.process(request);
+            }
         }
 
-        // Pipeline ③: 游戏内完全没数据 -> 轮询Fetcher/计算Hash/拦截/洗白
+        // 情况 B: 完全没有 URL / 数据损坏 -> 兜底获取 (FetchPath)
         return fetchPath.process(request);
     }
 
@@ -110,7 +115,6 @@ public class OnlinePipeline implements CoreAPI {
         if (signedPath != null) signedPath.shutdown();
         if (unsignedPath != null) unsignedPath.shutdown();
         if (fetchPath != null) fetchPath.shutdown();
-        // storage 统一由 SkinPipeline 调度器关闭，此处不越权
         info(logger, "[OnlinePipeline] Components shutdown.");
     }
 
