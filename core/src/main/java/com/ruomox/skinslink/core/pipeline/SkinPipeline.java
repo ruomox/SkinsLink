@@ -13,6 +13,7 @@ import com.ruomox.skinslink.core.util.HttpUtil;
 import com.ruomox.skinslink.core.util.LogUtil;
 import com.ruomox.skinslink.core.util.SkinCodec;
 
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 import static com.ruomox.skinslink.core.util.LogUtil.info;
@@ -20,11 +21,12 @@ import static com.ruomox.skinslink.core.util.LogUtil.info;
 /**
  * 核心管道调度器 (Dispatcher)
  */
-public class SkinPipeline implements CoreAPI {
+public class SkinPipeline implements CoreAPI, CoreEnvironment {
 
     private Logger logger;
     private ConfigUtil.Config config;
     private SkinStorage storage;
+    private Path dataFolder;
 
     // 当前激活的业务 Pipeline (Online 或 Offline)
     private CoreAPI activePipeline;
@@ -33,6 +35,11 @@ public class SkinPipeline implements CoreAPI {
     private UniversalSkinFetcher universalFetcher;
     private MineSkinKeyStore keyStore;
     private SkinSigner skinSigner;
+
+    @Override
+    public void setDataFolder(Path dataFolder) {
+        this.dataFolder = dataFolder;
+    }
 
     @Override
     public void init(Logger platformLogger) {
@@ -44,7 +51,8 @@ public class SkinPipeline implements CoreAPI {
         SkinCodec.init(logger);
 
         // 2. 加载核心配置
-        this.config = ConfigUtil.load(logger, null);
+        Path configPath = (this.dataFolder != null) ? this.dataFolder.resolve("config.yml") : null;
+        this.config = ConfigUtil.load(logger, configPath);
         LogUtil.setDebugMode(config.debugMode());
 
         info(logger, "[Pipeline] Initializing Core Components...");

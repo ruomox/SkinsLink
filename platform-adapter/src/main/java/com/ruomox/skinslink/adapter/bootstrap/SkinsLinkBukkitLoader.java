@@ -19,11 +19,11 @@ public class SkinsLinkBukkitLoader extends JavaPlugin {
             // 引导加载
             this.platform = SkinsLinkBootstrap.bootstrap(adapterLogger);
 
-            // 修正 1: 移除冗余的 null 检查，逻辑由 bootstrap 的异常机制保证
+            // 移除冗余的 null 检查，逻辑由 bootstrap 的异常机制保证
             this.platform.onEnable();
 
         } catch (Exception e) {
-            // 修正 2: 替换 printStackTrace
+            // 替换 printStackTrace
             getLogger().log(Level.SEVERE, "Failed to load SkinsLink platform implementation!", e);
             getServer().getPluginManager().disablePlugin(this);
         }

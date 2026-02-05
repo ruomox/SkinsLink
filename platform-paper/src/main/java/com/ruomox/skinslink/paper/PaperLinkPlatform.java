@@ -3,6 +3,7 @@ package com.ruomox.skinslink.paper;
 import com.ruomox.skinslink.api.platform.LinkPlatform;
 import com.ruomox.skinslink.api.platform.PlatformContext;
 import com.ruomox.skinslink.core.api.CoreAPI;
+import com.ruomox.skinslink.core.api.CoreEnvironment;
 import com.ruomox.skinslink.core.api.Logger;
 import com.ruomox.skinslink.core.pipeline.SkinPipeline;
 import org.bukkit.Bukkit;
@@ -37,6 +38,11 @@ public class PaperLinkPlatform implements LinkPlatform {
     @Override
     public void onEnable() {
         logger.info("Initializing SkinsLink (Paper Platform)...");
+
+        if (coreAPI instanceof CoreEnvironment env) {
+            env.setDataFolder(plugin.getDataFolder().toPath());
+        }
+
         coreAPI.init(logger); // 调用接口方法
 
         Bukkit.getPluginManager().registerEvents(
