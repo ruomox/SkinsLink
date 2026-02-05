@@ -1,0 +1,5 @@
+name: SkinsLink
+version: 1.0.0
+main: com.ruomox.skinslink.adapter.bootstrap.SkinsLinkBukkitLoader
+api-version: 1.13
+authors: [Mox ZaZa]
